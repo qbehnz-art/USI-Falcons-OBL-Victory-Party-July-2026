@@ -978,7 +978,7 @@
       venueLng: 123.25673,
       details: 'Celebrate the champions with the USI Falcons family. Overnight celebration from 3:00 PM to 12:00 NN.',
       INVITE_PASSWORD: 'OBL2026',
-      RSVP_BACKEND_URL: ''
+      RSVP_BACKEND_URL: 'https://script.google.com/macros/s/AKfycbwnh2xRsj_gxWYZTW6tlAffpLAuXI9XiQQrg72KHF_0g1OuECiJgEWM4_DcBN00FsXJ/exec'
     };
 
     var reducedMotion = false;
@@ -1168,8 +1168,8 @@
       fetch(EVENT.RSVP_BACKEND_URL, { method: 'GET' })
         .then(function (res) { return res.json(); })
         .then(function (data) {
-          var confirmed = Number(data && data.confirmed || 0);
-          var declined = Number(data && data.declined || 0);
+          var confirmed = Number((data && (data.confirmed || data.coming)) || 0);
+          var declined = Number((data && (data.declined || data.notComing)) || 0);
           target.textContent = confirmed + ' people confirmed' + (declined ? ' · ' + declined + ' can’t make it' : '') + '.';
         })
         .catch(function () {
@@ -1191,14 +1191,16 @@
         return;
       }
       statusBox.textContent = 'Sending your RSVP...';
-      var payload = { name: name, phone: phone, status: status, event: EVENT.title, at: new Date().toISOString() };
+      var responseValue = status === 'IN' ? 'coming' : 'not_coming';
+      var payload = { name: name, phone: phone, status: status, response: responseValue, event: EVENT.title, at: new Date().toISOString() };
       fetch(EVENT.RSVP_BACKEND_URL, {
         method: 'POST',
         body: JSON.stringify(payload)
         // No explicit Content-Type header: keeps this as a CORS simple request for Apps Script.
       })
         .then(function (res) { return res.json(); })
-        .then(function () {
+        .then(function (data) {
+          if (data && data.ok === false) { statusBox.textContent = data.message || 'This phone number already RSVP’d.'; return; }
           statusBox.textContent = status === 'IN' ? 'You’re in. Championship table is warm. 🏆' : 'Got it. Thanks for letting us know.';
           if (status === 'IN') burstConfetti(52);
           refreshHeadcount();
